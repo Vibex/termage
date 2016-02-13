@@ -9,19 +9,21 @@ DFH="16" # Default font height
 CLEAR="0" # If this is set to 1 it clears the teminal before printing the image
 FIT="1" # If this is set to 1 then wiw will limit the size of the image
 ECHO="0" # If this is set to 1 then wiw will output the command that should be piped into w3mimgdisplay, instead of printing the image
+CENTER="0" # If this is set to 1 then wiw will center the image between x,y and mw,mh
 
 # Print help
 if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 	echo "wiw: w3mimg Wrapper			Version: $VERSION"
 	echo "USAGE"
 	echo "	wiw [-h --help]			Display this"
+	echo "	wiw --size IMAGE		Print the width and height of the image, returned as 'WIDTH HEIGHT'"
 	echo "	wiw [ARGS] IMAGE		Display an image on the terminal"
 	echo "	wiw --echo [ARGS] IMAGE		Print out the command to produce the desired image"
-	echo "	wiw --size IMAGE		Print the width and height of the image, returned as 'WIDTH HEIGHT'"
 	echo "ARGS"
 	echo "	--clear				Clear the terminal before printing the image"
 	echo "	--no-fit			Don't force the image to fit the terminal"
-	echo "	-f width${DEL}height			Set the width and height of the font, Used to determine the max size of the image" 
+	echo "	--center			Tells wiw to center the image in the given space"
+	echo "	-f width${DEL}height			Set the width and height of the font, Used to determine the max size of the terminal" 
 	echo "						(default width = ${DFW}, default height = ${DFH})"
 	echo "	-g x${DEL}y${DEL}width${DEL}height		Set the x, y, width, and height of the image"
 	echo "						(default x = 0, default y = 0, default w = term width, default h = term height)"
@@ -29,10 +31,11 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 	echo "	-s x${DEL}y${DEL}width${DEL}height		Set the x, y, width, and height of the source image"
 	echo "						(default x = 0, default y = 0, default w = image width, default h = image height)"
 	echo "						This command is a bit weird, I would reccomend not using it unless really needed"
-	echo "	-c width${DEL}height			Set the cursor position for after the image is printed"
-	echo "						(default x = 0, default y = line after image)"
 	echo "	-m width${DEL}height			Set the max width and height the image can consume"
 	echo "						(default w = full term width, default h = full term height)"
+	echo "	-c width${DEL}height			Set the cursor position for after the image is printed"
+	echo "						(default x = 0, default y = line after image)"
+	echo "						x and y can be set to LAST, to be placed at the last element"
 	echo "	-d delimiter			Set the delimiter between items in the -f, -g, and -s args (MUST BE A SINGLE CHARACTER)"
 	echo "						(default delimiter = '${DEL}')"
 	exit
@@ -50,6 +53,8 @@ while [ $# != 1 ]; do
 		FIT="0"
 	elif [[ "$1" == "--echo" ]]; then
 		ECHO="1"
+	elif [[ "$1" == "--center" ]]; then
+		CENTER="1"
 	elif [[ "$1" == "-f" ]]; then
 		FW=`echo "$2" | cut -d "$DEL" -f1`
 		FH=`echo "$2" | cut -d "$DEL" -f2`
@@ -106,14 +111,14 @@ if [[ "$Y" == "" ]]; then
 fi
 
 # Full image  width and height
-read TW TH <<< `echo -e "5;$FN" | $W3MIMGDISPLAY`
+read IW IH <<< `echo -e "5;$FN" | $W3MIMGDISPLAY`
 
 # If no width or height were specified use the temp
 if [[ "$W" == "" ]]; then
-	W="$TW";
+	W="$IW";
 fi
 if [[ "$H" == "" ]]; then
-	H="$TH";
+	H="$IH";
 fi
 
 # If no sx or sy were set then set them to 0
@@ -126,10 +131,10 @@ fi
 
 # If no s width or s height were specified use the temp
 if [[ "$SW" == "" ]]; then
-	SW="$TW";
+	SW="$IW";
 fi
 if [[ "$SH" == "" ]]; then
-	SH="$TH";
+	SH="$IH";
 fi
 
 # Get column and line count
@@ -147,12 +152,14 @@ fi
 ### DONE SETTING DEFAULTS
 
 if [[ "$W" == "R" ]] && [[ "$H" == "R" ]]; then
-	W="$TW";
-	H="$TH";
+	W="$IW";
+	H="$IH";
 elif [[ "$W" == "R" ]]; then
-	W=$(($TW * $H / $TH))
+	W=$(($IW * $H))
+	W=`printf "%.0f" $(echo "scale=2;$W/$IH" | bc)`
 elif [[ "$H" == "R" ]]; then
-	H=$(($TH * $W / $TW))
+	H=$(($IH * $W))
+	H=`printf "%.0f" $(echo "scale=2;$H/$IW" | bc)`
 fi
 
 # If --no-fit was not run then limit size
@@ -167,6 +174,12 @@ if [[ "$FIT" == "1" ]]; then
 	fi
 fi
 
+# If --center was run
+if [[ "$CENTER" == "1" ]]; then
+	X=$((($MW - $W) / 2))
+	Y=$((($MH - $H) / 2))
+fi
+
 # Format the command
 WC="0;1;$X;$Y;$W;$H;$SX;$SY;$SW;$SH;$FN\n4;\n3;"
 
@@ -175,8 +188,18 @@ if [[ "$CX" == "" ]]; then
 	CX="0";
 fi
 if [[ "$CY" == "" ]]; then
-	CY="$((($H + $Y - $SY)/$FH))"
+	CY=$(($H + $Y - $SY))
+	CY=`printf "%.0f" $(echo "scale=2;$CY/$FH" | bc)`
 fi
+
+# If cx or cy was set to LAST
+if [[ "$CX" == "LAST" ]]; then
+	CX="$COL";
+fi
+if [[ "$CY" == "LAST" ]]; then
+	CY="$LIN"
+fi
+
 
 # If --echo was run
 if [[ "$ECHO" == "1" ]]; then 
