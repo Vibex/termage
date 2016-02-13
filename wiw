@@ -1,0 +1,153 @@
+#!/bin/bash
+VERSION="1.0" # Version number of wiw
+
+W3MIMGDISPLAY="/usr/lib/w3m/w3mimgdisplay" # Were w3mimgdisplay is located
+DEL="-" # The default delimiter between items
+DFW="7" # Default font width
+DFH="16" # Default font height
+
+CLEAR="0" # If this is set to 1 it clears the teminal before printing the image
+FIT="1" # If this is set to 1 then wiw will limit the size of the image
+ECHO="0" # If this is set to 1 then wiw will output the command that should be piped into w3mimgdisplay, instead of printing the image
+
+# Print help
+if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+	echo "wiw: w3mimg Wrapper			Version: $VERSION"
+	echo "USAGE"
+	echo "	wiw [-h --help]			Display this"
+	echo "	wiw [ARGS] IMAGE		Display an image on the terminal"
+	echo "	wiw --echo [ARGS] IMAGE		Print out the command to produce the desired image"
+	echo "ARGS"
+	echo "	--clear				Clear the terminal before printing the image"
+	echo "	--no-fit			Don't force the image to fit the terminal"
+	echo "	-f width${DEL}height			Set the width and height of the font, Used to determine the max size of the image" 
+	echo "						(default width = ${DFW}, default height = ${DFH})"
+	echo "	-g x${DEL}y${DEL}width${DEL}height		Set the x, y, width, and height of the image"
+	echo "						(default x = 0, default y = 0, default w = term width, default h = term height)"
+	echo "	-s x${DEL}y${DEL}width${DEL}height		Set the x, y, width, and height of the source image"
+	echo "						(default x = 0, default y = 0, default w = image width, default h = image height)"
+	echo "	-c width${DEL}height			Set the cursor position for after the image is printed"
+	echo "						(default x = 0, default y = line after image)"
+	echo "	-d delimiter			Set the delimiter between items in the -f, -g, and -s args (MUST BE A SINGLE CHARACTER)"
+	echo "						(default delimiter = '${DEL}')"
+	exit
+fi
+
+# Cycle through params
+while [ $# != 1 ]; do
+	if [[ "$1" == "--clear" ]]; then
+		CLEAR="1"
+	elif [[ "$1" == "--no-fit" ]]; then
+		FIT="0"
+	elif [[ "$1" == "--echo" ]]; then
+		ECHO="1"
+	elif [[ "$1" == "-f" ]]; then
+		FW=`echo "$2" | cut -d "$DEL" -f1`
+		FH=`echo "$2" | cut -d "$DEL" -f2`
+		shift
+	elif [[ "$1" == "-g" ]]; then
+		X=`echo "$2" | cut -d "$DEL" -f1`
+		Y=`echo "$2" | cut -d "$DEL" -f2`
+		W=`echo "$2" | cut -d "$DEL" -f3`
+		H=`echo "$2" | cut -d "$DEL" -f4`
+		shift
+	elif [[ "$1" == "-s" ]]; then
+		SX=`echo "$2" | cut -d "$DEL" -f1`
+		SY=`echo "$2" | cut -d "$DEL" -f2`
+		SW=`echo "$2" | cut -d "$DEL" -f3`
+		SH=`echo "$2" | cut -d "$DEL" -f4`
+		shift
+	elif [[ "$1" == "-c" ]]; then
+		CX=`echo "$2" | cut -d "$DEL" -f1`
+		CY=`echo "$2" | cut -d "$DEL" -f2`
+		shift
+	elif [[ "$1" == "-d" ]]; then
+		DEL="$2"
+		shift
+	fi
+	shift
+done
+
+# Set the fie to the only remaining param
+FN="$1"
+shift
+# Test to make sure that the file exists
+test -e "$FN" || exit
+
+# If an font width or height was not set then use the default
+if [[ "$FW" == "" ]]; then
+	FW="$DFW"
+fi
+if [[ "$FH" == "" ]]; then
+	FH="$DFH"
+fi
+
+# If an X or Y was not set then set them to 0
+if [[ "$X" == "" ]]; then
+	X="0";
+fi
+if [[ "$Y" == "" ]]; then
+	Y="0";
+fi
+
+# Temp width and height
+read TW TH <<< `echo -e "5;$FN" | $W3MIMGDISPLAY`
+
+# If no width or height were specified use the temp
+if [[ "$W" == "" ]]; then
+	W="$TW";
+fi
+if [[ "$H" == "" ]]; then
+	H="$TH";
+fi
+
+# If no sx or sy were set then set them to 0
+if [[ "$SX" == "" ]]; then
+	SX="0";
+fi
+if [[ "$SY" == "" ]]; then
+	SY="0";
+fi
+
+# Get column and line count
+COL=`tput cols`
+LIN=`tput lines`
+
+# If --no-fit was not run then limit size
+if [[ "$FIT" == "1" ]]; then
+	# Max width and height
+	MW=$((($FW * $COL) - $X))
+	MH=$((($FH * $(($LIN - 2)) - $Y))) # substract one line for prompt
+
+	if test $W -gt $MW; then
+		H=$(($H * $MW / $W))
+		W=$MW
+	fi
+	if test $H -gt $MH; then
+		W=$(($W * $MH / $H))
+		H=$MH
+	fi
+fi
+
+# If no cx or cy was set then use the defaults
+if [[ "$CX" == "" ]]; then
+	CX="0";
+fi
+if [[ "$CY" == "" ]]; then
+	CY="$((($H + $Y)/$FH))"
+fi
+
+# Format the command
+WC="0;1;$X;$Y;$W;$H;$SX;$SY;$SW;$SH;$FN\n4;\n3;"
+
+# If --echo was run
+if [[ "$ECHO" == "1" ]]; then 
+	echo "$WC"
+else 
+	# If --clear was run
+	if [[ "$CLEAR" == "1" ]]; then
+		clear
+	fi
+	tput cup $CY $CX
+	echo -e $WC | $W3MIMGDISPLAY
+fi
