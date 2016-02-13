@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="1.1" # Version number of wiw
+VERSION="1.2" # Version number of wiw
 
 W3MIMGDISPLAY="/usr/lib/w3m/w3mimgdisplay" # Were w3mimgdisplay is located
 DEL="-" # The default delimiter between items
@@ -23,16 +23,19 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 	echo "	--clear				Clear the terminal before printing the image"
 	echo "	--no-fit			Don't force the image to fit the terminal"
 	echo "	--center			Tells wiw to center the image in the given space"
-	echo "	-f width${DEL}height			Set the width and height of the font, Used to determine the max size of the terminal" 
+	echo "	-f width${DEL}height			Set the width and height of the font, used to determine max term size and items specified in U" 
 	echo "						(default width = ${DFW}, default height = ${DFH})"
 	echo "	-g x${DEL}y${DEL}width${DEL}height		Set the x, y, width, and height of the image"
 	echo "						(default x = 0, default y = 0, default w = term width, default h = term height)"
+	echo "						You can specify these as a #U (were # is any number) to use the unit of the font"
 	echo "						width and height can be set to R, this will preserve image ratio"
 	echo "	-s x${DEL}y${DEL}width${DEL}height		Set the x, y, width, and height of the source image"
 	echo "						(default x = 0, default y = 0, default w = image width, default h = image height)"
+	echo "						You can specify these as a #U (were # is any number) to use the unit of the font"
 	echo "						This command is a bit weird, I would reccomend not using it unless really needed"
 	echo "	-m width${DEL}height			Set the max width and height the image can consume"
 	echo "						(default w = full term width, default h = full term height)"
+	echo "						You can specify these as a #U (were # is any number) to use the unit of the font"
 	echo "	-c width${DEL}height			Set the cursor position for after the image is printed"
 	echo "						(default x = 0, default y = line after image)"
 	echo "						x and y can be set to LAST, to be placed at the last element"
@@ -44,6 +47,8 @@ elif [[ "$1" == "--size" ]]; then
 	echo -e "5;$2" | $W3MIMGDISPLAY
 	exit
 fi
+
+
 
 # Cycle through args
 while [ $# != 1 ]; do
@@ -110,6 +115,16 @@ if [[ "$Y" == "" ]]; then
 	Y="0";
 fi
 
+# If an x or y is in U
+if [[ "$X" == *"U" ]]; then
+	X=`echo "$X" | cut -d "U" -f1`
+	X=$(($X * $FW))
+fi
+if [[ "$Y" == *"U" ]]; then
+	Y=`echo "$Y" | cut -d "U" -f1`
+	Y=$(($Y * $FH))
+fi
+
 # Full image  width and height
 read IW IH <<< `echo -e "5;$FN" | $W3MIMGDISPLAY`
 
@@ -121,6 +136,16 @@ if [[ "$H" == "" ]]; then
 	H="$IH";
 fi
 
+# If a width or height is in U
+if [[ "$W" == *"U" ]]; then
+	W=`echo "$W" | cut -d "U" -f1`
+	W=$(($W * $FW))
+fi
+if [[ "$H" == *"U" ]]; then
+	H=`echo "$H" | cut -d "U" -f1`
+	H=$(($H * $FH))
+fi
+
 # If no sx or sy were set then set them to 0
 if [[ "$SX" == "" ]]; then
 	SX="0";
@@ -129,12 +154,32 @@ if [[ "$SY" == "" ]]; then
 	SY="0";
 fi
 
+# If an sx or sy is in U
+if [[ "$SX" == *"U" ]]; then
+	SX=`echo "$SX" | cut -d "U" -f1`
+	SX=$(($SX * $FW))
+fi
+if [[ "$SY" == *"U" ]]; then
+	SY=`echo "$SY" | cut -d "U" -f1`
+	SY=$(($SY * $FH))
+fi
+
 # If no s width or s height were specified use the temp
 if [[ "$SW" == "" ]]; then
 	SW="$IW";
 fi
 if [[ "$SH" == "" ]]; then
 	SH="$IH";
+fi
+
+# If a width or height is in U
+if [[ "$SW" == *"U" ]]; then
+	SW=`echo "$SW" | cut -d "U" -f1`
+	SW=$(($SW * $FW))
+fi
+if [[ "$SH" == *"U" ]]; then
+	SH=`echo "$SH" | cut -d "U" -f1`
+	SH=$(($SH * $FH))
 fi
 
 # Get column and line count
@@ -147,6 +192,16 @@ if [[ "$MW" == "" ]]; then
 fi
 if [[ "$MH" == "" ]]; then
 	MH=$((($FH * $(($LIN - 2)) - $Y + $SY))) # substract lines for prompt
+fi
+
+# If a width or height is in U
+if [[ "$MW" == *"U" ]]; then
+	MW=`echo "$MW" | cut -d "U" -f1`
+	MW=$(($MW * $FW))
+fi
+if [[ "$MH" == *"U" ]]; then
+	MH=`echo "$MH" | cut -d "U" -f1`
+	MH=$(($MH * $MH))
 fi
 
 ### DONE SETTING DEFAULTS
