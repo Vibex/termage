@@ -1,5 +1,5 @@
 #!/bin/bash
-VERSION="1.0" # Version number of wiw
+VERSION="1.1" # Version number of wiw
 
 W3MIMGDISPLAY="/usr/lib/w3m/w3mimgdisplay" # Were w3mimgdisplay is located
 DEL="-" # The default delimiter between items
@@ -17,6 +17,7 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 	echo "	wiw [-h --help]			Display this"
 	echo "	wiw [ARGS] IMAGE		Display an image on the terminal"
 	echo "	wiw --echo [ARGS] IMAGE		Print out the command to produce the desired image"
+	echo "	wiw --size IMAGE		Print the width and height of the image, returned as 'WIDTH HEIGHT'"
 	echo "ARGS"
 	echo "	--clear				Clear the terminal before printing the image"
 	echo "	--no-fit			Don't force the image to fit the terminal"
@@ -24,16 +25,24 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 	echo "						(default width = ${DFW}, default height = ${DFH})"
 	echo "	-g x${DEL}y${DEL}width${DEL}height		Set the x, y, width, and height of the image"
 	echo "						(default x = 0, default y = 0, default w = term width, default h = term height)"
+	echo "						width and height can be set to R, this will preserve image ratio"
 	echo "	-s x${DEL}y${DEL}width${DEL}height		Set the x, y, width, and height of the source image"
 	echo "						(default x = 0, default y = 0, default w = image width, default h = image height)"
+	echo "						This command is a bit weird, I would reccomend not using it unless really needed"
 	echo "	-c width${DEL}height			Set the cursor position for after the image is printed"
 	echo "						(default x = 0, default y = line after image)"
+	echo "	-m width${DEL}height			Set the max width and height the image can consume"
+	echo "						(default w = full term width, default h = full term height)"
 	echo "	-d delimiter			Set the delimiter between items in the -f, -g, and -s args (MUST BE A SINGLE CHARACTER)"
 	echo "						(default delimiter = '${DEL}')"
 	exit
+# Print the size of the image
+elif [[ "$1" == "--size" ]]; then
+	echo -e "5;$2" | $W3MIMGDISPLAY
+	exit
 fi
 
-# Cycle through params
+# Cycle through args
 while [ $# != 1 ]; do
 	if [[ "$1" == "--clear" ]]; then
 		CLEAR="1"
@@ -61,6 +70,10 @@ while [ $# != 1 ]; do
 		CX=`echo "$2" | cut -d "$DEL" -f1`
 		CY=`echo "$2" | cut -d "$DEL" -f2`
 		shift
+	elif [[ "$1" == "-m" ]]; then
+		MW=`echo "$2" | cut -d "$DEL" -f1`
+		MH=`echo "$2" | cut -d "$DEL" -f2`
+		shift
 	elif [[ "$1" == "-d" ]]; then
 		DEL="$2"
 		shift
@@ -68,11 +81,13 @@ while [ $# != 1 ]; do
 	shift
 done
 
-# Set the fie to the only remaining param
+# Set the file to the only remaining param
 FN="$1"
 shift
 # Test to make sure that the file exists
 test -e "$FN" || exit
+
+### SET DEFAULTS IF THEY WERE NOT SET BY ARGS
 
 # If an font width or height was not set then use the default
 if [[ "$FW" == "" ]]; then
@@ -90,7 +105,7 @@ if [[ "$Y" == "" ]]; then
 	Y="0";
 fi
 
-# Temp width and height
+# Full image  width and height
 read TW TH <<< `echo -e "5;$FN" | $W3MIMGDISPLAY`
 
 # If no width or height were specified use the temp
@@ -109,16 +124,39 @@ if [[ "$SY" == "" ]]; then
 	SY="0";
 fi
 
+# If no s width or s height were specified use the temp
+if [[ "$SW" == "" ]]; then
+	SW="$TW";
+fi
+if [[ "$SH" == "" ]]; then
+	SH="$TH";
+fi
+
 # Get column and line count
 COL=`tput cols`
 LIN=`tput lines`
 
+# If no max width or height were set then use the default
+if [[ "$MW" == "" ]]; then
+	MW=$((($FW * $COL) - $X + $SX))
+fi
+if [[ "$MH" == "" ]]; then
+	MH=$((($FH * $(($LIN - 2)) - $Y + $SY))) # substract lines for prompt
+fi
+
+### DONE SETTING DEFAULTS
+
+if [[ "$W" == "R" ]] && [[ "$H" == "R" ]]; then
+	W="$TW";
+	H="$TH";
+elif [[ "$W" == "R" ]]; then
+	W=$(($TW * $H / $TH))
+elif [[ "$H" == "R" ]]; then
+	H=$(($TH * $W / $TW))
+fi
+
 # If --no-fit was not run then limit size
 if [[ "$FIT" == "1" ]]; then
-	# Max width and height
-	MW=$((($FW * $COL) - $X))
-	MH=$((($FH * $(($LIN - 2)) - $Y))) # substract one line for prompt
-
 	if test $W -gt $MW; then
 		H=$(($H * $MW / $W))
 		W=$MW
@@ -129,16 +167,16 @@ if [[ "$FIT" == "1" ]]; then
 	fi
 fi
 
+# Format the command
+WC="0;1;$X;$Y;$W;$H;$SX;$SY;$SW;$SH;$FN\n4;\n3;"
+
 # If no cx or cy was set then use the defaults
 if [[ "$CX" == "" ]]; then
 	CX="0";
 fi
 if [[ "$CY" == "" ]]; then
-	CY="$((($H + $Y)/$FH))"
+	CY="$((($H + $Y - $SY)/$FH))"
 fi
-
-# Format the command
-WC="0;1;$X;$Y;$W;$H;$SX;$SY;$SW;$SH;$FN\n4;\n3;"
 
 # If --echo was run
 if [[ "$ECHO" == "1" ]]; then 

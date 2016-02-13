@@ -52,6 +52,7 @@ while true; do
 		read -rsp "" -n1 KEYPRESS
 		case $KEYPRESS in 
 			$KILL) # Kill termage
+				clear
 				exit;;
 			$PREV) # Previous image (changes to deal with dual image)
 				IMG=`expr $IMG - 1`
