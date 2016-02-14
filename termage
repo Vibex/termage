@@ -1,12 +1,15 @@
 #!/bin/bash
 VER="2.0"
-LAST_UPDATED="February 2, 2016"
 
 # Keybinds
-KILL="q"    # Quit out from termage
-PREV="n"    # Go to the previous image
-NEXT="o"    # Go to the next image
-REDRAW="r"  # Redraw the current image
+KKILL="q"    # Quit out from termage
+KPREV="n"    # Go to the previous image
+KNEXT="o"    # Go to the next image
+KREDRAW="r"  # Redraw the current image
+KCENTER="c"  # Toggle centering
+KINFO="i"    # Toggle info display
+KNOTE="N"    # Open notes
+KOPEN="O"    # Open the image in something else
 
 # Colours
 BLACK="\033[0m\033[30m"
@@ -18,32 +21,83 @@ MAGENTA="\033[0m\033[35m"
 CYAN="\033[0m\033[36m"
 WHITE="\033[0m\033[37m"
 
-# Test the params for valid files.
-IMG=0
-FILE=()
-k=0
-echo -e "${WHITE}Loading selected files..."
-for arg in "$@"; do
-	if [[ `file -i "$arg" | grep image` ]]; then
-		echo -e "$GREEN$arg"
-		FILE[k]=$arg
-		k=`expr $k + 1`
-	else
-		echo -e "$RED$arg"
-	fi
-done
-echo -e "${WHITE}Loaded all files."
+# When this is set to 1 the image is centered in the frame
+center="0"
+# When this is set to 1 the image info is displayed
+info="0"
 
-if [[ ${FILE[$IMG]} == "" ]]; then
-	echo -e "${RED}Error: No valid files."
-	exit
+# Function to load all passed in images
+function load_images {
+	# Test the params for valid files.
+	IMG=0
+	FILE=()
+	k=0
+	echo -e "${WHITE}Loading selected files..."
+	for arg in "$@"; do
+		if [[ `file -i "$arg" | grep image` ]]; then
+			echo -e "$GREEN$arg"
+			FILE[k]=$arg
+			k=`expr $k + 1`
+		else
+			echo -e "$RED$arg"
+		fi
+	done
+	echo -e "${WHITE}Loaded all files."
+	
+	if [[ ${FILE[$IMG]} == "" ]]; then
+		echo -e "${RED}Error: No valid files."
+		exit
+	fi
+}
+
+# Load initial images
+if [[ "$#" != "0" ]]; then
+	load_images "$@"
+else
+	load_images *
 fi
 
 # Begin Image display loop
 while true; do
 	FILENAME=${FILE[$IMG]}
 	# display the image
-	wiw --clear "$FILENAME"
+	if [[ "$center" == "1" ]]; then
+		if [[ "$info" == "1" ]]; then
+			wiw --clear --center -c 0-LAST -m -4UN "$FILENAME"
+			tfn=`basename "$FILENAME"`
+			echo "        Name:	$tfn"
+			tfs=`du -h "$FILENAME" | cut -d "	" -f1`
+			echo "   File Size:	$tfs"
+			tw3m=`wiw --size "$FILENAME"`
+			tw3m1=`echo "$tw3m" | cut -d ' ' -f1`
+			tw3m2=`echo "$tw3m" | cut -d ' ' -f2`
+			echo "  Image Size:	${tw3m1}x${tw3m2}"
+			tw3m=`wiw --echo --clear --center -c 0-LAST -m -4UN "$FILENAME"`
+			tw3m1=`echo "$tw3m" | cut -d ';' -f5`
+			tw3m2=`echo "$tw3m" | cut -d ';' -f6`
+			echo "  Drawn Size:	${tw3m1}x${tw3m2}"
+		else
+			wiw --clear --center -c 0-LAST "$FILENAME"
+		fi
+	else
+		if [[ "$info" == "1" ]]; then
+			wiw --clear -m -4UN "$FILENAME"
+			tfn=`basename "$FILENAME"`
+			echo "        Name:	$tfn"
+			tfs=`du -h "$FILENAME" | cut -d "	" -f1`
+			echo "   File Size:	$tfs"
+			tw3m=`wiw --size "$FILENAME"`
+			tw3m1=`echo "$tw3m" | cut -d ' ' -f1`
+			tw3m2=`echo "$tw3m" | cut -d ' ' -f2`
+			echo "  Image Size:	${tw3m1}x${tw3m2}"
+			tw3m=`wiw --echo -m -4UN "$FILENAME"`
+			tw3m1=`echo "$tw3m" | cut -d ';' -f5`
+			tw3m2=`echo "$tw3m" | cut -d ';' -f6`
+			echo "  Drawn Size:	${tw3m1}x${tw3m2}"
+		else
+			wiw --clear "$FILENAME"
+		fi
+	fi
 	
 	# Wait for and respond to key strokes
 	if [ -t 0 ]; then stty -echo -icanon time 0 min 0; fi
@@ -51,16 +105,30 @@ while true; do
 	while true; do
 		read -rsp "" -n1 KEYPRESS
 		case $KEYPRESS in 
-			$KILL) # Kill termage
+			$KKILL) # Kill termage
 				clear
 				exit;;
-			$PREV) # Previous image (changes to deal with dual image)
+			$KPREV) # Previous image (changes to deal with dual image)
 				IMG=`expr $IMG - 1`
 				break;;
-			$NEXT) # Next image (changes to deal with dual image)
+			$KNEXT) # Next image (changes to deal with dual image)
 				IMG=`expr $IMG + 1`
 				break;;
-			$REDRAW) # redraws the current image 
+			$KREDRAW) # redraws the current image 
+				break;;
+			$KCENTER) # Teggle centering
+				if [[ "$center" == "1" ]]; then
+					center="0"
+				else
+					center="1"
+				fi
+				break;;
+			$KINFO) # Teggle centering
+				if [[ "$info" == "1" ]]; then
+					info="0"
+				else
+					info="1"
+				fi
 				break;;
 			*);; 
 		esac

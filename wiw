@@ -19,6 +19,7 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 	echo "	wiw --size IMAGE		Print the width and height of the image, returned as 'WIDTH HEIGHT'"
 	echo "	wiw [ARGS] IMAGE		Display an image on the terminal"
 	echo "	wiw --echo [ARGS] IMAGE		Print out the command to produce the desired image"
+	echo "	wiw --direct CMD		Pass a command directly into w3mimgdisplay"
 	echo "ARGS"
 	echo "	--clear				Clear the terminal before printing the image"
 	echo "	--no-fit			Don't force the image to fit the terminal"
@@ -36,6 +37,7 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 	echo "	-m width${DEL}height			Set the max width and height the image can consume"
 	echo "						(default w = full term width, default h = full term height)"
 	echo "						You can specify these as a #U (were # is any number) to use the unit of the font"
+	echo "						You can specify these as a #N (were # is any number) to subtract from the max term size"
 	echo "	-c width${DEL}height			Set the cursor position for after the image is printed"
 	echo "						(default x = 0, default y = line after image)"
 	echo "						x and y can be set to LAST, to be placed at the last element"
@@ -45,6 +47,10 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
 # Print the size of the image
 elif [[ "$1" == "--size" ]]; then
 	echo -e "5;$2" | $W3MIMGDISPLAY
+	exit
+# Pass a command directly into w3mimgdisplay
+elif [[ "$1" == "--direct" ]]; then
+	echo -e "$2" | $W3MIMGDISPLAY
 	exit
 fi
 
@@ -186,22 +192,36 @@ fi
 COL=`tput cols`
 LIN=`tput lines`
 
+# TEMPORARY VARIABLES FOR THE ABILITY TO USE BOTH U AND N 
+TMW="$MW"
+TMH="$MH"
+
 # If no max width or height were set then use the default
-if [[ "$MW" == "" ]]; then
+if [[ "$TMW" == "" ]]; then
 	MW=$((($FW * $COL) - $X + $SX))
 fi
-if [[ "$MH" == "" ]]; then
+if [[ "$TMH" == "" ]]; then
 	MH=$((($FH * $(($LIN - 2)) - $Y + $SY))) # substract lines for prompt
 fi
 
 # If a width or height is in U
-if [[ "$MW" == *"U" ]]; then
-	MW=`echo "$MW" | cut -d "U" -f1`
+if [[ "$TMW" == *"U"* ]]; then
+	MW=`echo "$MW" | cut -d "U" -f1 | cut -d "N" -f1`
 	MW=$(($MW * $FW))
 fi
-if [[ "$MH" == *"U" ]]; then
-	MH=`echo "$MH" | cut -d "U" -f1`
-	MH=$(($MH * $MH))
+if [[ "$TMH" == *"U"* ]]; then
+	MH=`echo "$MH" | cut -d "U" -f1 | cut -d "N" -f1`
+	MH=$(($MH * $FH))
+fi
+
+# If a width or height is in U
+if [[ "$TMW" == *"N"* ]]; then
+	MW=`echo "$MW" | cut -d "U" -f1 | cut -d "N" -f1`
+	MW=$((($FW * $COL) - $X + $SX - $MW))
+fi
+if [[ "$TMH" == *"N"* ]]; then
+	MH=`echo "$MH" | cut -d "U" -f1 | cut -d "N" -f1`
+	MH=$((($FH * $(($LIN - 2)) - $Y + $SY - $MH)))
 fi
 
 ### DONE SETTING DEFAULTS
