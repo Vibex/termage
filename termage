@@ -1,5 +1,5 @@
 #!/bin/bash
-VER="2.0"
+VER="2.1"
 
 # Keybinds
 KKILL="q"    # Quit out from termage
@@ -9,7 +9,6 @@ KREDRAW="r"  # Redraw the current image
 KCENTER="c"  # Toggle centering
 KINFO="i"    # Toggle info display
 KNOTE="N"    # Open notes
-KOPEN="O"    # Open the image in something else
 
 # Colours
 BLACK="\033[0m\033[30m"
@@ -22,9 +21,9 @@ CYAN="\033[0m\033[36m"
 WHITE="\033[0m\033[37m"
 
 # When this is set to 1 the image is centered in the frame
-center="0"
+center="1"
 # When this is set to 1 the image info is displayed
-info="0"
+info="1"
 
 # Function to load all passed in images
 function load_images {
@@ -50,6 +49,29 @@ function load_images {
 	fi
 }
 
+function print_info {
+	PIC="$1"
+	PIF="$2"
+	clear
+	tput cup $(tput lines) 0
+	wiw --direct "$PIC"
+	tfn=`basename "$PIF"`
+	echo "        Name:	$tfn"
+	tdr=`readlink -f "$PIF"`
+	tdr="${tdr%$tfn}"
+	echo "    Location:	$tdr"
+	tfs=`du -h "$PIF" | cut -d "	" -f1`
+	echo "   File Size:	$tfs"
+	size=`wiw --size "$PIF"`
+	size1=`echo "$size" | cut -d ' ' -f1`
+	size2=`echo "$size" | cut -d ' ' -f2`
+	echo "  Image Size:	${size1}x${size2}"
+	draw1=`echo "$PIC" | cut -d ';' -f5`
+	draw2=`echo "$PIC" | cut -d ';' -f6`
+	echo "  Drawn Size:	${draw1}x${draw2}"
+
+}
+
 # Load initial images
 if [[ "$#" != "0" ]]; then
 	load_images "$@"
@@ -63,37 +85,15 @@ while true; do
 	# display the image
 	if [[ "$center" == "1" ]]; then
 		if [[ "$info" == "1" ]]; then
-			wiw --clear --center -c 0-LAST -m -4UN "$FILENAME"
-			tfn=`basename "$FILENAME"`
-			echo "        Name:	$tfn"
-			tfs=`du -h "$FILENAME" | cut -d "	" -f1`
-			echo "   File Size:	$tfs"
-			tw3m=`wiw --size "$FILENAME"`
-			tw3m1=`echo "$tw3m" | cut -d ' ' -f1`
-			tw3m2=`echo "$tw3m" | cut -d ' ' -f2`
-			echo "  Image Size:	${tw3m1}x${tw3m2}"
-			tw3m=`wiw --echo --clear --center -c 0-LAST -m -4UN "$FILENAME"`
-			tw3m1=`echo "$tw3m" | cut -d ';' -f5`
-			tw3m2=`echo "$tw3m" | cut -d ';' -f6`
-			echo "  Drawn Size:	${tw3m1}x${tw3m2}"
+			CMD=`wiw --echo -m -5UN --center "$FILENAME"`
+			print_info "$CMD" "$FILENAME"
 		else
 			wiw --clear --center -c 0-LAST "$FILENAME"
 		fi
 	else
 		if [[ "$info" == "1" ]]; then
-			wiw --clear -m -4UN "$FILENAME"
-			tfn=`basename "$FILENAME"`
-			echo "        Name:	$tfn"
-			tfs=`du -h "$FILENAME" | cut -d "	" -f1`
-			echo "   File Size:	$tfs"
-			tw3m=`wiw --size "$FILENAME"`
-			tw3m1=`echo "$tw3m" | cut -d ' ' -f1`
-			tw3m2=`echo "$tw3m" | cut -d ' ' -f2`
-			echo "  Image Size:	${tw3m1}x${tw3m2}"
-			tw3m=`wiw --echo -m -4UN "$FILENAME"`
-			tw3m1=`echo "$tw3m" | cut -d ';' -f5`
-			tw3m2=`echo "$tw3m" | cut -d ';' -f6`
-			echo "  Drawn Size:	${tw3m1}x${tw3m2}"
+			CMD=`wiw --echo -m -5UN "$FILENAME"`
+			print_info "$CMD" "$FILENAME"
 		else
 			wiw --clear "$FILENAME"
 		fi
@@ -116,19 +116,31 @@ while true; do
 				break;;
 			$KREDRAW) # redraws the current image 
 				break;;
-			$KCENTER) # Teggle centering
+			$KCENTER) # Toggle centering
 				if [[ "$center" == "1" ]]; then
 					center="0"
 				else
 					center="1"
 				fi
 				break;;
-			$KINFO) # Teggle centering
+			$KINFO) # Toggle info
 				if [[ "$info" == "1" ]]; then
 					info="0"
 				else
 					info="1"
 				fi
+				break;;
+			$KNOTE) # Open notes
+				tfn=`basename "$FILENAME"`
+				tdr=`readlink -f "$FILENAME"`
+				tdr="${tdr%$tfn}"
+				tnn="${tdr}.${tfn}_notes"
+				if [ -f "$tnn" ]; then
+					$EDITOR "$tnn"
+				else
+					touch "$tnn"
+					$EDITOR "$tnn"
+				fi	
 				break;;
 			*);; 
 		esac

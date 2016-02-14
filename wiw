@@ -278,12 +278,12 @@ fi
 
 # If --echo was run
 if [[ "$ECHO" == "1" ]]; then 
-	echo "$WC"
+	echo -e "$WC"
 else 
 	# If --clear was run
 	if [[ "$CLEAR" == "1" ]]; then
 		clear
 	fi
 	tput cup $CY $CX
-	echo -e $WC | $W3MIMGDISPLAY
+	echo -e "$WC" | $W3MIMGDISPLAY
 fi
