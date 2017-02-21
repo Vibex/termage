@@ -3,6 +3,7 @@
 Termage is a wrapper for wiw (included here) to allow it to act more like a fully fledged image viewer. It is still a work in progress, so it is not fully featured yet.
 
 ## todo
+* Add ability to edit settings from the command line
 * Add ability to delete files
 * Add ability to rename files
 * Add ability to quickly change files

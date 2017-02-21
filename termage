@@ -25,27 +25,46 @@ center="1"
 # When this is set to 1 the image info is displayed
 info="1"
 
+# When this is set to 1 termage will go through all files to make sure they are valid before proceeding to display
+check="0"
+
 # Function to load all passed in images
 function load_images {
 	# Test the params for valid files.
 	IMG=0
+	FILE=("$@")
+}
+
+# Function to load all passed in images (also checks to make sure they are images)
+function load_images_check {
+	# Test the params for valid files.
+	IMG=0
 	FILE=()
+
 	k=0
-	echo -e "${WHITE}Loading selected files..."
+	v=0
+	i=0
+	echo -e "${WHITE}Loading valid files..."
 	for arg in "$@"; do
 		if [[ `file -i "$arg" | grep image` ]]; then
 			echo -e "$GREEN$arg"
 			FILE[k]=$arg
 			k=`expr $k + 1`
+			v=`expr $k + 1`
 		else
 			echo -e "$RED$arg"
+			i=`expr $k + 1`
 		fi
 	done
-	echo -e "${WHITE}Loaded all files."
 	
+	echo -e ""
 	if [[ ${FILE[$IMG]} == "" ]]; then
 		echo -e "${RED}Error: No valid files."
 		exit
+	else
+		echo -e "${WHITE}Loaded all valid files."
+		echo -e "${WHIE}${v} valid"
+		echo -e "${WHIE}${i} invalid"
 	fi
 }
 
@@ -73,10 +92,18 @@ function print_info {
 }
 
 # Load initial images
-if [[ "$#" != "0" ]]; then
-	load_images "$@"
+if [[ "$check" == "0" ]]; then
+	if [[ "$#" != "0" ]]; then
+		load_images "$@"
+	else
+		load_images *
+	fi
 else
-	load_images *
+	if [[ "$#" != "0" ]]; then
+		load_images_check "$@"
+	else
+		load_images_check *
+	fi
 fi
 
 # Begin Image display loop
